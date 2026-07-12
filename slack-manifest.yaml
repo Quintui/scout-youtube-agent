@@ -1,0 +1,40 @@
+# Slack app manifest.
+# Create the app at https://api.slack.com/apps -> Create an app -> From a manifest.
+# Replace <YOUR-PUBLIC-URL> with your tunnel URL (local dev) or Railway URL (production).
+# Webhook path format: /api/agents/<AGENT_ID>/channels/slack/webhook
+display_information:
+  name: Scout
+features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: mastra-agent
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - im:write
+      - app_mentions:read
+      - channels:history
+      - channels:read
+      - chat:write
+      - users:read
+      - im:read
+      - im:history
+  pkce_enabled: false
+settings:
+  event_subscriptions:
+    request_url: https://<YOUR-PUBLIC-URL>/api/agents/slack-agent/channels/slack/webhook
+    bot_events:
+      - app_mention
+      - message.channels
+      - message.im
+  interactivity:
+    is_enabled: true
+    request_url: https://<YOUR-PUBLIC-URL>/api/agents/slack-agent/channels/slack/webhook
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
+  is_mcp_enabled: false
