@@ -4,6 +4,7 @@ import { createSlackAdapter } from '@chat-adapter/slack'
 import { researcher } from './researcher'
 import { createNotionIdea } from '../tools/create-notion-idea'
 import { listSlackChannels, fetchSlackMessages } from '../tools/slack-history'
+import { slackToolDisplay, slackTypingStatus } from '../channels/slack-display'
 
 export const slackAgent = new Agent({
   id: 'slack-agent',
@@ -80,8 +81,15 @@ When calling create-notion-idea, the "report" argument must be STANDARD markdown
   tools: { createNotionIdea, listSlackChannels, fetchSlackMessages },
   channels: {
     adapters: {
-      // Reads SLACK_SIGNING_SECRET and SLACK_BOT_TOKEN from env automatically
-      slack: createSlackAdapter(),
+      slack: {
+        // Reads SLACK_SIGNING_SECRET and SLACK_BOT_TOKEN from env automatically
+        adapter: createSlackAdapter(),
+        // Stream text live; render tool activity as a human-friendly task
+        // timeline (in place of the default JSON result cards).
+        streaming: true,
+        toolDisplay: slackToolDisplay,
+        typingStatus: slackTypingStatus,
+      },
     },
   },
 })
