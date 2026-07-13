@@ -53,15 +53,39 @@ async function notionFetch(path: string, init: RequestInit = {}) {
 export const createNotionIdea = createTool({
   id: 'create-notion-idea',
   description:
-    'Creates a page in the YouTube video ideas Notion database with the idea title and the full research brief as page content. Only call this after the user has confirmed the brief.',
+    'Creates a page in the YouTube video ideas Notion database with the idea title, the full research brief as page content, and video metadata properties. Only call this after the user has confirmed the brief.',
   inputSchema: z.object({
     title: z.string().describe('Short, clear video idea title for the Notion page'),
     report: z
       .string()
       .describe('Full research brief in markdown: angles, validation, titles, hook'),
+    bucket: z
+      .enum(['AI concepts', 'AI SDK specific', 'Mastra specific', 'Product development'])
+      .describe('Which content bucket this video idea belongs to'),
+    excitement: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .optional()
+      .describe('How exciting this idea is, 1-5, based on the research verdict'),
+    confidence: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .optional()
+      .describe('Confidence the video will perform, 1-5, based on validation evidence'),
+    effort: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .optional()
+      .describe('Estimated production effort, 1-5 (5 = most effort)'),
   }),
   requireApproval: true,
-  execute: async ({ title, report }) => {
+  execute: async ({ title, report, bucket, excitement, confidence, effort }) => {
     const databaseId = process.env.NOTION_DATABASE_ID
     if (!process.env.NOTION_API_KEY || !databaseId) {
       throw new Error('NOTION_API_KEY and NOTION_DATABASE_ID must be set')
@@ -74,13 +98,21 @@ export const createNotionIdea = createTool({
     )?.[0]
     if (!titleProp) throw new Error('No title property found on the Notion database')
 
+    const properties: Record<string, unknown> = {
+      [titleProp]: { title: richText(title) },
+      Status: { select: { name: 'Needs Research' } },
+      Format: { select: { name: 'Long form' } },
+      Bucket: { select: { name: bucket } },
+    }
+    if (excitement) properties.Excitement = { select: { name: String(excitement) } }
+    if (confidence) properties.Confidence = { select: { name: String(confidence) } }
+    if (effort) properties.Effort = { select: { name: String(effort) } }
+
     const page = await notionFetch('/pages', {
       method: 'POST',
       body: JSON.stringify({
         parent: { database_id: databaseId },
-        properties: {
-          [titleProp]: { title: richText(title) },
-        },
+        properties,
         children: markdownToBlocks(report),
       }),
     })

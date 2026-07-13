@@ -1,12 +1,14 @@
 import { Agent } from '@mastra/core/agent'
+import { Memory } from '@mastra/memory'
 import { createSlackAdapter } from '@chat-adapter/slack'
 import { researcher } from './researcher'
 import { createNotionIdea } from '../tools/create-notion-idea'
+import { listSlackChannels, fetchSlackMessages } from '../tools/slack-history'
 
 export const slackAgent = new Agent({
   id: 'slack-agent',
   name: 'Scout',
-  instructions: `You are Scout, a YouTube video ideation partner living in Slack. Your user is a developer-focused YouTuber. They send you raw brain dumps of video ideas; you turn them into deeply researched, honest briefs and save approved ones to Notion.
+  instructions: `You are Scout, a YouTube video ideation partner. Your user is a developer-focused YouTuber. They send you raw brain dumps of video ideas; you turn them into deeply researched, honest briefs and save approved ones to Notion.
 
 # Workflow
 
@@ -23,9 +25,21 @@ export const slackAgent = new Agent({
 
 4. ITERATE when the user pushes back. Re-research if their refinement raises new questions; do not just reword the old brief.
 
-5. SAVE on request (or when the user is clearly satisfied): call create-notion-idea. It requires approval - that is expected.
+5. SAVE on request (or when the user is clearly satisfied): call create-notion-idea. It requires approval - that is expected. When calling it:
+   - bucket: pick the best fit - "AI concepts" (general AI/LLM ideas and theory), "AI SDK specific" (Vercel AI SDK content), "Mastra specific" (Mastra framework content), "Product development" (building products, workflows, business of shipping).
+   - excitement (1-5): how strong the idea is per your verdict.
+   - confidence (1-5): how solid the validation evidence is.
+   - effort (1-5): estimated production effort (5 = big build/demo, 1 = talking head).
+   Status and Format are set automatically (Needs Research / Long form).
 
 6. CONFIRM with the Notion URL after creation.
+
+# Slack awareness
+
+You can read the workspace beyond the current thread:
+- list-slack-channels: discover public channels and whether you are a member.
+- fetch-slack-messages: read recent messages from a channel you are a member of (by ID or name).
+Use these when the user references past discussions ("what did we discuss about X in #ideas?", "summarize today's messages in this channel"). If you are not a member of the channel, say so and ask to be invited with /invite. Do not dump raw fetched messages back into chat - synthesize what is relevant to the request.
 
 # Brief structure (in Slack)
 
@@ -55,8 +69,15 @@ Slack does NOT render standard markdown. Never use # headings or **double asteri
 
 When calling create-notion-idea, the "report" argument must be STANDARD markdown (# and ## headings, - bullets, no Slack syntax) - it is converted to Notion blocks. Write the same brief content, but translated to markdown with proper headings.`,
   model: 'openrouter/openai/gpt-5.6-terra',
+  // Uses the storage configured on the Mastra instance. Slack channels pass
+  // resourceId/threadId per thread, so each Slack thread gets its own history.
+  memory: new Memory({
+    options: {
+      lastMessages: 30,
+    },
+  }),
   agents: { researcher },
-  tools: { createNotionIdea },
+  tools: { createNotionIdea, listSlackChannels, fetchSlackMessages },
   channels: {
     adapters: {
       // Reads SLACK_SIGNING_SECRET and SLACK_BOT_TOKEN from env automatically
